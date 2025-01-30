@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Аудио-осциллограф Pro</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --green-primary: #00ff00;
+            --retrowave-primary: #ff007f;
+            --cyberpunk-primary: #00ffff;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #000;
+            color: #fff;
+            min-height: 100vh;
+            transition: all 0.3s ease;
+        }
+
+        body.green {
+            background: linear-gradient(180deg, #000000, #002200);
+        }
+
+        body.retrowave {
+            background: linear-gradient(180deg, #110022, #330044);
+        }
+
+        body.cyberpunk {
+            background: linear-gradient(180deg, #001133, #000066);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+        }
+
+        .visualizer {
+            margin: 20px 0;
+            position: relative;
+        }
+
+        canvas {
+            width: 100%;
+            height: 300px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .control-group {
+            flex: 1;
+            min-width: 250px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .slider-container {
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        input[type="range"] {
+            flex: 1;
+            height: 8px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        audio {
+            width: 100%;
+            margin: 10px 0;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            background: var(--green-primary);
+            color: black;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .retrowave button {
+            background: var(--retrowave-primary);
+        }
+
+        .cyberpunk button {
+            background: var(--cyberpunk-primary);
+        }
+
+        button:hover {
+            opacity: 0.8;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .status {
+            text-align: center;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .theme-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body class="green">
+    <div class="container">
+        <h1><i class="fas fa-wave-square"></i> Аудио-осциллограф</h1>
+        
+        <div class="controls">
+            <input type="file" id="audioFile" accept="audio/*" class="file-input">
+            <button onclick="document.getElementById('audioFile').click()">
+                <i class="fas fa-upload"></i> Выбрать файл
+            </button>
+            <audio id="audio" controls></audio>
+        </div>
+
+        <div class="visualizer">
+            <canvas id="canvas"></canvas>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <h3>Настройки визуализации</h3>
+                <div class="slider-container">
+                    <span>Чувствительность:</span>
+                    <input type="range" id="sensitivity" min="1" max="10" value="5">
+                    <span id="sensitivityValue">5</span>
+                </div>
+                <div class="slider-container">
+                    <span>Скорость:</span>
+                    <input type="range" id="speed" min="1" max="10" value="5">
+                    <span id="speedValue">5</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>Управление</h3>
+                <button id="startButton"><i class="fas fa-play"></i> Старт</button>
+                <button id="stopButton"><i class="fas fa-stop"></i> Стоп</button>
+                <button id="gridButton"><i class="fas fa-th"></i> Сетка</button>
+            </div>
+
+            <div class="control-group">
+                <h3>Темы</h3>
+                <div class="theme-buttons">
+                    <button id="greenTheme"><i class="fas fa-circle"></i> Зелёная</button>
+                    <button id="retrowaveTheme"><i class="fas fa-circle"></i> Ретровейв</button>
+                    <button id="cyberpunkTheme"><i class="fas fa-circle"></i> Киберпанк</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="status" id="status"></div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const audio = document.getElementById('audio');
+        const fileInput = document.getElementById('audioFile');
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+        const gridButton = document.getElementById('gridButton');
+        const sensitivitySlider = document.getElementById('sensitivity');
+        const speedSlider = document.getElementById('speed');
+        const status = document.getElementById('status');
+
+        let audioContext = null;
+        let analyser = null;
+        let dataArray = null;
+        let animationId = null;
+        let isPlaying = false;
+        let showGrid = false;
+
+        // Theme handling
+        const themes = {
+            green: { color: '#00FF00', background: 'linear-gradient(180deg, #000000, #002200)' },
+            retrowave: { color: '#FF007F', background: 'linear-gradient(180deg, #110022, #330044)' },
+            cyberpunk: { color: '#00FFFF', background: 'linear-gradient(180deg, #001133, #000066)' }
+        };
+
+        function setTheme(themeName) {
+            document.body.className = themeName;
+        }
+
+        document.getElementById('greenTheme').addEventListener('click', () => setTheme('green'));
+        document.getElementById('retrowaveTheme').addEventListener('click', () => setTheme('retrowave'));
+        document.getElementById('cyberpunkTheme').addEventListener('click', () => setTheme('cyberpunk'));
+
+        // Grid toggle
+        gridButton.addEventListener('click', () => {
+            showGrid = !showGrid;
+            if (isPlaying) {
+                draw(); // Redraw immediately if playing
+            } else {
+                drawGrid(); // Just draw grid if paused
+            }
+        });
+
+        function drawGrid() {
+            const width = canvas.width;
+            const height = canvas.height;
+            const gridSize = 30; // Size of grid cells
+
+            ctx.strokeStyle = document.body.classList.contains('retrowave') ? 
+                'rgba(255, 0, 127, 0.2)' : 
+                document.body.classList.contains('cyberpunk') ?
+                'rgba(0, 255, 255, 0.2)' :
+                'rgba(0, 255, 0, 0.2)';
+
+            ctx.lineWidth = 1;
+
+            // Draw vertical lines
+            for (let x = 0; x < width; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+                ctx.stroke();
+            }
+
+            // Draw horizontal lines
+            for (let y = 0; y < height; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.stroke();
+            }
+        }
+
+        function setupCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+        }
+
+        async function initAudio() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                const source = audioContext.createMediaElementSource(audio);
+                
+                source.connect(analyser);
+                analyser.connect(audioContext.destination);
+                
+                analyser.fftSize = 2048;
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+                
+                status.textContent = 'Аудио успешно инициализировано';
+            } catch (error) {
+                status.textContent = 'Ошибка при инициализации аудио: ' + error.message;
+            }
+        }
+
+        function draw() {
+            if (!isPlaying) return;
+
+            const sensitivity = sensitivitySlider.value / 5;
+            const speed = speedSlider.value / 5;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid if enabled
+            if (showGrid) {
+                drawGrid();
+            }
+
+            analyser.getByteTimeDomainData(dataArray);
+            
+            ctx.lineWidth = 2;
+            
+            // Set color based on current theme
+            ctx.strokeStyle = document.body.classList.contains('retrowave') ? 
+                '#FF007F' : document.body.classList.contains('cyberpunk') ?
+                '#00FFFF' : '#00FF00';
+            
+            ctx.beginPath();
+            const sliceWidth = (canvas.width * speed) / dataArray.length;
+            let x = 0;
+
+            for (let i = 0; i < dataArray.length; i++) {
+                const v = (dataArray[i] / 128.0) * sensitivity;
+                const y = (v * canvas.height) / 2;
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+
+                x += sliceWidth;
+            }
+
+            ctx.stroke();
+            animationId = requestAnimationFrame(draw);
+        }
+
+        fileInput.addEventListener('change', async (e) => {
+            if (e.target.files[0]) {
+                const file = e.target.files[0];
+                audio.src = URL.createObjectURL(file);
+                if (!audioContext) {
+                    await initAudio();
+                }
+            }
+        });
+
+        startButton.addEventListener('click', () => {
+            if (!audioContext) {
+                status.textContent = 'Пожалуйста, сначала выберите аудиофайл';
+                return;
+            }
+            isPlaying = true;
+            audio.play();
+            draw();
+        });
+
+        stopButton.addEventListener('click', () => {
+            isPlaying = false;
+            audio.pause();
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+        });
+
+        sensitivitySlider.addEventListener('input', () => {
+            document.getElementById('sensitivityValue').textContent = sensitivitySlider.value;
+        });
+
+        speedSlider.addEventListener('input', () => {
+            document.getElementById('speedValue').textContent = speedSlider.value;
+        });
+
+        window.addEventListener('resize', setupCanvas);
+        setupCanvas();
+    </script>
+</body>
+</html>
