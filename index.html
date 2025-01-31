@@ -1,15 +1,16 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Аудио-осциллограф Pro</title>
+    <title>Audio Oscilloscope Pro</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         :root {
             --green-primary: #00ff00;
             --retrowave-primary: #ff007f;
-            --cyberpunk-primary: #00ffff;
+            --ocean-primary: #00ffff;
+            --sunset-primary: #ff6b35;
         }
 
         body {
@@ -30,8 +31,12 @@
             background: linear-gradient(180deg, #110022, #330044);
         }
 
-        body.cyberpunk {
+        body.ocean {
             background: linear-gradient(180deg, #001133, #000066);
+        }
+
+        body.sunset {
+            background: linear-gradient(180deg, #1a0f00, #331400);
         }
 
         .container {
@@ -104,8 +109,12 @@
             background: var(--retrowave-primary);
         }
 
-        .cyberpunk button {
-            background: var(--cyberpunk-primary);
+        .ocean button {
+            background: var(--ocean-primary);
+        }
+
+        .sunset button {
+            background: var(--sunset-primary);
         }
 
         button:hover {
@@ -134,12 +143,12 @@
 </head>
 <body class="green">
     <div class="container">
-        <h1><i class="fas fa-wave-square"></i> Аудио-осциллограф</h1>
+        <h1><i class="fas fa-wave-square"></i> Audio Oscilloscope</h1>
         
         <div class="controls">
             <input type="file" id="audioFile" accept="audio/*" class="file-input">
             <button onclick="document.getElementById('audioFile').click()">
-                <i class="fas fa-upload"></i> Выбрать файл
+                <i class="fas fa-upload"></i> Choose File
             </button>
             <audio id="audio" controls></audio>
         </div>
@@ -150,32 +159,33 @@
 
         <div class="controls">
             <div class="control-group">
-                <h3>Настройки визуализации</h3>
+                <h3>Visualization Settings</h3>
                 <div class="slider-container">
-                    <span>Чувствительность:</span>
+                    <span>Sensitivity:</span>
                     <input type="range" id="sensitivity" min="1" max="10" value="5">
                     <span id="sensitivityValue">5</span>
                 </div>
                 <div class="slider-container">
-                    <span>Скорость:</span>
+                    <span>Speed:</span>
                     <input type="range" id="speed" min="1" max="10" value="5">
                     <span id="speedValue">5</span>
                 </div>
             </div>
 
             <div class="control-group">
-                <h3>Управление</h3>
-                <button id="startButton"><i class="fas fa-play"></i> Старт</button>
-                <button id="stopButton"><i class="fas fa-stop"></i> Стоп</button>
-                <button id="gridButton"><i class="fas fa-th"></i> Сетка</button>
+                <h3>Controls</h3>
+                <button id="startButton"><i class="fas fa-play"></i> Start</button>
+                <button id="stopButton"><i class="fas fa-stop"></i> Stop</button>
+                <button id="gridButton"><i class="fas fa-th"></i> Grid</button>
             </div>
 
             <div class="control-group">
-                <h3>Темы</h3>
+                <h3>Themes</h3>
                 <div class="theme-buttons">
-                    <button id="greenTheme"><i class="fas fa-circle"></i> Зелёная</button>
-                    <button id="retrowaveTheme"><i class="fas fa-circle"></i> Ретровейв</button>
-                    <button id="cyberpunkTheme"><i class="fas fa-circle"></i> Киберпанк</button>
+                    <button id="greenTheme"><i class="fas fa-circle"></i> Green</button>
+                    <button id="retrowaveTheme"><i class="fas fa-circle"></i> Retrowave</button>
+                    <button id="oceanTheme"><i class="fas fa-circle"></i> Ocean</button>
+                    <button id="sunsetTheme"><i class="fas fa-circle"></i> Sunset</button>
                 </div>
             </div>
         </div>
@@ -206,7 +216,8 @@
         const themes = {
             green: { color: '#00FF00', background: 'linear-gradient(180deg, #000000, #002200)' },
             retrowave: { color: '#FF007F', background: 'linear-gradient(180deg, #110022, #330044)' },
-            cyberpunk: { color: '#00FFFF', background: 'linear-gradient(180deg, #001133, #000066)' }
+            ocean: { color: '#00FFFF', background: 'linear-gradient(180deg, #001133, #000066)' },
+            sunset: { color: '#FF6B35', background: 'linear-gradient(180deg, #1a0f00, #331400)' }
         };
 
         function setTheme(themeName) {
@@ -215,7 +226,8 @@
 
         document.getElementById('greenTheme').addEventListener('click', () => setTheme('green'));
         document.getElementById('retrowaveTheme').addEventListener('click', () => setTheme('retrowave'));
-        document.getElementById('cyberpunkTheme').addEventListener('click', () => setTheme('cyberpunk'));
+        document.getElementById('oceanTheme').addEventListener('click', () => setTheme('ocean'));
+        document.getElementById('sunsetTheme').addEventListener('click', () => setTheme('sunset'));
 
         // Grid toggle
         gridButton.addEventListener('click', () => {
@@ -234,8 +246,10 @@
 
             ctx.strokeStyle = document.body.classList.contains('retrowave') ? 
                 'rgba(255, 0, 127, 0.2)' : 
-                document.body.classList.contains('cyberpunk') ?
+                document.body.classList.contains('ocean') ?
                 'rgba(0, 255, 255, 0.2)' :
+                document.body.classList.contains('sunset') ?
+                'rgba(255, 107, 53, 0.2)' :
                 'rgba(0, 255, 0, 0.2)';
 
             ctx.lineWidth = 1;
@@ -278,9 +292,9 @@
                 analyser.fftSize = 2048;
                 dataArray = new Uint8Array(analyser.frequencyBinCount);
                 
-                status.textContent = 'Аудио успешно инициализировано';
+                status.textContent = 'Audio successfully initialized';
             } catch (error) {
-                status.textContent = 'Ошибка при инициализации аудио: ' + error.message;
+                status.textContent = 'Error initializing audio: ' + error.message;
             }
         }
 
@@ -303,8 +317,9 @@
             
             // Set color based on current theme
             ctx.strokeStyle = document.body.classList.contains('retrowave') ? 
-                '#FF007F' : document.body.classList.contains('cyberpunk') ?
-                '#00FFFF' : '#00FF00';
+                '#FF007F' : document.body.classList.contains('ocean') ?
+                '#00FFFF' : document.body.classList.contains('sunset') ?
+                '#FF6B35' : '#00FF00';
             
             ctx.beginPath();
             const sliceWidth = (canvas.width * speed) / dataArray.length;
@@ -339,7 +354,7 @@
 
         startButton.addEventListener('click', () => {
             if (!audioContext) {
-                status.textContent = 'Пожалуйста, сначала выберите аудиофайл';
+                status.textContent = 'Please select an audio file first';
                 return;
             }
             isPlaying = true;
